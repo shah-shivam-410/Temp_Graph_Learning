@@ -8,7 +8,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
 from app.config import Settings
-from app.models import BuilderResult
+from app.models import BuilderResult, SQLState
 from app.schema_loader import SchemaCatalog
 
 SYSTEM_PROMPT = """You are a PostgreSQL SQL builder for a read-only analytics agent.
@@ -27,6 +27,15 @@ Schema context:
 
 User requirement:
 {requirement}
+
+SQL to revise:
+{sql}
+
+Errors:
+{errors}
+
+Warnings:
+{warnings}
 """
 
 
@@ -41,7 +50,7 @@ class SqlRevisor:
             temperature=0,
         ) if self.settings.gemini_api_key else None
 
-    def revise(self, requirement: str) -> BuilderResult:
+    def revise(self, state: SQLState) -> SQLState:
         if self.client is None:
             raise RuntimeError("GEMINI_API_KEY is not configured in .env")
         
@@ -62,7 +71,14 @@ class SqlRevisor:
             "blocked_columns": ", ".join(self.settings.blocked_columns),
             "max_rows": self.settings.max_rows,
             "schema_context": self.catalog.prompt_context(self.settings.blocked_tables),
-            "requirement": requirement,
+            "requirement": state.requirement,
+            "sql": state.sql,
+            "errors": json.dumps(state.errors, indent=2) if state.errors else "",
+            "warnings": json.dumps(state.warnings, indent=2) if state.warnings else "",
         })
 
-        return result
+        state.revised_sql = result.sanitized_sql
+        state.explanation = result.explanation
+        state.tables_used = result.tables_used
+        state.assumptions = result.assumptions
+        return state

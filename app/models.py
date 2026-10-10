@@ -14,6 +14,19 @@ class BuilderResult(BaseModel):
     tables_used: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
 
+class SQLState(BaseModel):
+    requirement: str
+    sql: str
+    explanation: str
+    tables_used: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+    is_valid: bool
+    revised_sql: str | None = None
+    errors: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    attempt: int
+    max_attempts: int = 3
+
 class ValidationRequest(BaseModel):
     sql: str = Field(min_length=1)
 
